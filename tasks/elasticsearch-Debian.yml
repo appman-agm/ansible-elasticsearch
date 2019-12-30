@@ -46,22 +46,22 @@
       name: apt-transport-https
       state: present
 
-  - name: Debian - Add Elasticsearch repository key
-    apt_key:
-      url: '{{ es_apt_key }}'
-      id: '{{ es_apt_key_id }}'
-      state: present
-    when: es_add_repository and es_apt_key | string
+  # - name: Debian - Add Elasticsearch repository key
+  #   apt_key:
+  #     url: '{{ es_apt_key }}'
+  #     id: '{{ es_apt_key_id }}'
+  #     state: present
+  #   when: es_add_repository and es_apt_key | string
 
-  - name: Debian - Add elasticsearch repository
-    apt_repository:
-      repo: '{{ item.repo }}'
-      state: '{{ item.state }}'
-    when: es_add_repository
-    with_items:
-      - { repo: "{{ es_apt_url_old }}", state: "absent" }
-      - { repo: "{{ es_apt_url }}", state: "present" }
-      - { repo: "{{ es_other_apt_url }}", state: "absent" }
+  # - name: Debian - Add elasticsearch repository
+  #   apt_repository:
+  #     repo: '{{ item.repo }}'
+  #     state: '{{ item.state }}'
+  #   when: es_add_repository
+  #   with_items:
+  #     - { repo: "{{ es_apt_url_old }}", state: "absent" }
+  #     - { repo: "{{ es_apt_url }}", state: "present" }
+  #     - { repo: "{{ es_other_apt_url }}", state: "absent" }
 
 - name: Include optional user and group creation.
   when: (es_user_id is defined) and (es_group_id is defined)
@@ -81,19 +81,33 @@
     selection: "install"
   when: not es_version_lock or (installed_es_version.stdout and installed_es_version.stdout != es_version)
 
-- name: Debian - Ensure elasticsearch is installed
-  become: yes
-  apt:
-    name: '{{ es_package_name }}{% if es_version is defined and es_version != "" %}={{ es_version }}{% endif %}'
-    state: present
-    force: '{{ force_install }}'
-    allow_unauthenticated: "{{ 'no' if es_apt_key else 'yes' }}"
-    cache_valid_time: 86400
-  when: es_use_repository
-  register: debian_elasticsearch_install_from_repo
-  notify: restart elasticsearch
-  environment:
-    ES_PATH_CONF: "{{ es_conf_dir }}"
+- name: Copy elasticsearch deb offline
+  copy:
+    src: ./elasticsearch.deb
+    dest: ~/elasticsearch.deb
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install elasticsearch deb offline
+  command: dpkg -i ~/elasticsearch.deb
+
+- name: Remove elasticsearch deb offline
+  command: rm ~/elasticsearch.deb
+
+# - name: Debian - Ensure elasticsearch is installed
+#   become: yes
+#   apt:
+#     name: '{{ es_package_name }}{% if es_version is defined and es_version != "" %}={{ es_version }}{% endif %}'
+#     state: present
+#     force: '{{ force_install }}'
+#     allow_unauthenticated: "{{ 'no' if es_apt_key else 'yes' }}"
+#     cache_valid_time: 86400
+#   when: es_use_repository
+#   register: debian_elasticsearch_install_from_repo
+#   notify: restart elasticsearch
+#   environment:
+#     ES_PATH_CONF: "{{ es_conf_dir }}"
 
 - name: Debian - hold elasticsearch version
   become: yes
